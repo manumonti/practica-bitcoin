@@ -71,11 +71,6 @@ COPY bitcoin.conf.template /etc/bitcoin/bitcoin.conf.template
 COPY entrypoint.sh         /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# ---- Helpers del alumno (disponibles en el PATH dentro del contenedor) ------
-COPY scripts/send_with_fee.sh /usr/local/bin/send_with_fee.sh
-COPY scripts/reset-chain.sh   /usr/local/bin/reset-chain.sh
-RUN chmod +x /usr/local/bin/send_with_fee.sh /usr/local/bin/reset-chain.sh
-
 # ---- Puertos expuestos ------------------------------------------------------
 #   22     → SSH (mapeado a 61150+k en el host)
 #   18443  → RPC regtest (solo accesible desde la red Docker)

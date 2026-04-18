@@ -10,10 +10,6 @@ Infraestructura Docker para la práctica de laboratorio del Módulo 5
 - **`entrypoint.sh`** — genera el `bitcoin.conf` final y lanza sshd.
 - **`docker-compose.yml`** — 16 alumnos (`alumno-01`..`alumno-16`) + 2 mineros (`minero-azul`, `minero-rojo`) en la red `blocknet` (`172.20.0.0/16`).
 - **`blocknet.env`** — variables compartidas (peers, RPC user/password, subred) que Compose inyecta en cada servicio vía `env_file`.
-- **`scripts/`** — helpers de la práctica:
-  - `fork-demo.sh` (host): orquesta la demo de fork/reorg del Bloque 3 con `docker compose exec`.
-  - `send_with_fee.sh` (dentro del contenedor): envía BTC con un fee rate explícito y muestra vsize + fee pagado.
-  - `reset-chain.sh` (dentro del contenedor): borra `~/.bitcoin/regtest` y rearranca `bitcoind` (plan B si el nodo queda inconsistente).
 
 ## Puesta en marcha
 
