@@ -12,7 +12,7 @@ Sobre esa VM, se encuentra levantado:
 
 El `bitcoin.conf` de cada contenedor se genera al arrancar a partir de una plantilla y de la variable de entorno `BITCOIN_PEERS`, que añade una línea `addnode=<peer>:18444` por cada compañero del aula. Así, al iniciar `bitcoind`, se forman conexiones P2P reales entre contenedores: cuando un nodo mina, los demás reciben el bloque por propagación estándar.
 
-## Bloque 0 · Arranque
+## Paso 0. Arranque
 
 Conectar por SSH al contenedor asignado a cada alumno.
 
@@ -27,14 +27,14 @@ bitcoind --version
 bitcoin-cli --version
 ```
 
-Observa que hay una carpeta llamada bitcoin en home. Mira su contenido:
+Observa que hay una carpeta llamada `.bitcoin` en home. Mira su contenido:
 
 ```bash
 cd /home/alumno
 ls -la
 ```
 
-## Bloque 1 · Configuración y primer arranque
+## Sección 1. Configuración y primer arranque
 
 Abrir `/home/alumno/.bitcoin/bitcoin.conf` con `cat` o `nano`, o `vim`. Observa las opciones de configuración.
 
@@ -45,72 +45,162 @@ bitcoind -daemon
 bitcoin-cli getblockchaininfo
 ```
 
-Esperamos a que nuestros compañeros inicien sus nodos.
-
-```bash
-# Observa cuantas conexiones activas hay
-bitcoin-cli getnetworkinfo
-```
-
 Abre otra sesión SSH en una terminal diferente, y deja abierto los logs:
 
 ```bash
 tail -f ~/.bitcoin/regtest/debug.log
 ```
 
-## Bloque 2 · La red del aula
+Esperamos a que nuestros compañeros inicien sus nodos.
 
+## Sección 2. La red del aula
 
-
-Cada alumno ejecuta `bitcoin-cli getpeerinfo` y descubre que ya está conectado con varios compañeros. Se explora qué información expone un peer: versión, IP, bloques en común, latencia, dirección de conexión, si es inbound u outbound.
-
-Antes de poder generar direcciones o minar, cada alumno necesita crear un *wallet* — Bitcoin Core 28 no lo hace automáticamente:
+Ejecuta el siguiente comando y mira si ya hay conexiones con compañeros.
 
 ```bash
-bitcoin-cli createwallet "lab"
+# Observa cuantas conexiones activas hay
+bitcoin-cli getnetworkinfo
+```
+
+Explora qué información expone un peer: versión, IP, bloques en común, latencia, dirección de conexión, si es inbound u outbound.
+
+```bash
+bitcoin-cli getpeerinfo
+```
+
+Ahora vamos a generar una wallet en nuestro nodo:
+
+```bash
+bitcoin-cli createwallet "wallet"
 bitcoin-cli listwallets
 ```
 
-A partir de aquí, todos los comandos de wallet (`getnewaddress`, `getbalance`, `sendtoaddress`, …) operan sobre ese wallet por defecto. Si se reinicia el contenedor, el wallet persiste en el volumen; basta con `bitcoin-cli loadwallet "lab"` para volver a usarlo.
+> **Nota:** A partir de aquí, todos los comandos de wallet (`getnewaddress`, `getbalance`, `sendtoaddress`, …) operan sobre ese wallet por defecto.
+> Si se reinicia el contenedor, el wallet persiste en el volumen; basta con `bitcoin-cli loadwallet "wallet"` para volver a usarlo.
 
-Un alumno voluntario (o el instructor) genera la primera dirección de minado y mina 10 bloques:
-
-```bash
-ADDR=$(bitcoin-cli getnewaddress)
-bitcoin-cli generatetoaddress 10 $ADDR
-```
-
-Los demás lanzan `bitcoin-cli getblockcount` y ven subir el contador en tiempo real. Esa propagación es la experiencia que ninguna slide puede transmitir igual.
-
-Después, cada alumno mina 101 bloques a una dirección propia para activar la maduración de coinbase y tener saldo gastable. Comprueban con `getbalance` y observan que los 50 BTC del primer bloque siguen sin ser gastables hasta pasar los 100 bloques de maduración.
-
-
-## Bloque 3 · Fork y reorganización (opcional)
-
-**Objetivo**: que los alumnos vean en directo qué significa "la cadena con más trabajo gana", cómo se produce una reorg, y por qué las confirmaciones son probabilísticas.
-
-El bloque es opcional porque requiere que el tiempo acompañe, pero es el momento más visceral de toda la práctica si sale bien.
-
-### Setup previo
-
-Los contenedores `minero-azul` y `minero-rojo` están conectados a la red del aula desde el principio, igual que cualquier otro nodo. Para esta demo el instructor los controla directamente por `docker exec` o por SSH.
-
-Conviene llevar preparado un script `fork-demo.sh` con las llamadas encadenadas — ejecutarlas a mano en vivo es frágil.
-
-### Estado inicial
-
-Todos los contenedores tienen el mismo tip. Se comprueba proyectando el resultado en pantalla:
+Genera una primera address de esta wallet:
 
 ```bash
-bitcoin-cli getbestblockhash
-bitcoin-cli getchaintips
+bitcoin-cli getnewaddress "alumnoaddr"
 ```
 
-Se carga adrede la mempool con un par de transacciones desde los contenedores de alumnos:
+> ¿Qué tipo de address es esta?
+
+Cada uno sube a https://dontpad.com/bitcoinuma su address.
+
+Si queremos generar otro tipo de address (no publicar esta address para evitar confusión).
+
+```bash
+bitcoin-cli getnewaddress "alumnoaddr2" bech32m
+```
+
+**Solo una persona** mina los 10 primeros bloques.
+
+```bash
+bitcoin-cli generatetoaddress 10 <addr>
+```
+
+> Pregunta: ¿qué hace este comando? ¿sería posible ejecutar este comando en mainnet?
+
+Ejecuta el comando para ver cuantos bloques tiene nuestra blockchain:
+
+```bash
+bitcoin-cli getblockcount
+```
+
+Ahora podemos consultar su saldo:
+
+```bash
+bitcoin-cli getreceivedbyaddress bcrt1qpw073edqn90t3rjehmpt2ss5alh9nh465ktyg2
+
+# alternativamente
+bitcoin-cli getbalance
+```
+
+> Pregunta: Si hay una address que ha minado 10 bloques, deberá haber recibido la recompensa de esos 10 bloques. ¿Es así? ¿Por qué?
+
+Minamos bloques por turnos (de 10 en 10, hasta 100 bloques) y observamos que el primer address ya tiene balance en el bloque 101.
+Es importante que todo el mundo mine para tener balance.
+
+```bash
+bitcoin-cli generatetoaddress 10 <addr>
+```
+
+Finalmente, para que todo el mundo tenga balance, minamos 1000 bloques.
+
+```bash
+bitcoin-cli generatetoaddress 1 <addr>
+```
+
+## Sección 4. Transacciones
+
+Vemos que la mempool se encuentra vacía:
+
+```bash
+bitcoin-cli getmempoolinfo
+bitcoin-cli getrawmempool
+```
+
+Se carga adrede la mempool con un par de transacciones desde los contenedores de alumnos
+Hacer transacción a las address de otros alumnos.
+Importante que sea una cantidad de menos de 1 BTC para poder identificarlo mejor el balance.
 
 ```bash
 bitcoin-cli sendtoaddress <alguna_dir> 0.5
-bitcoin-cli sendtoaddress <otra_dir> 0.25
+```
+
+> Pregunta: Consultamos el balance de nuestra wallet. ¿Ha recibido algo? ¿Por qué?
+
+Consultamos el estado de la mempool:
+
+```bash
+bitcoin-cli getmempoolinfo
+bitcoin-cli getrawmempool
+```
+
+Alguien mina 6 bloques para hacer efectivas las transaccioines:
+
+```bash
+bitcoin-cli generatetoaddress 6 <addr>
+```
+
+Comprobamos que la mempool está vacía y que el balance ha aumentado (si te han hecho una transacción).
+
+```bash
+bitcoin-cli getmempoolinfo
+bitcoin-cli getrawmempool
+bitcoin-cli getbalance
+```
+
+## Sección 5. Fork y reorganización
+
+Vamos a experimentar con el concepto de fork y reorganización de la cadena: "la cadena con más trabajo gana".
+
+### Setup previo
+
+Esto no es trabajo realizado por el alumno, si no que se mostrará en el proyector.
+
+Los contenedores `minero-azul` y `minero-rojo` están conectados a la red del aula desde el principio, igual que cualquier otro nodo.
+
+### Estado inicial
+
+Todos los contenedores tienen el mismo número de bloques:
+
+```bash
+bitcoin-cli getchaintips
+```
+
+Cargamos en la mempool algunas transacciones:
+
+```bash
+bitcoin-cli sendtoaddress <alguna_dir> 0.5
+bitcoin-cli sendtoaddress <otra_dir> 0.5
+```
+
+Ambos mineros deberán de tener las mismas transacciones en la mempool:
+
+```bash
+bitcoin-cli getrawmempool
 ```
 
 ### Paso 1 · Partición
@@ -125,9 +215,30 @@ bitcoin-cli setnetworkactive false
 bitcoin-cli setnetworkactive false
 ```
 
-`setnetworkactive false` desactiva completamente el networking P2P sin matar el proceso. Los mineros siguen operativos pero están en universos separados. Los alumnos no perciben nada distinto.
+`setnetworkactive false` desactiva completamente el networking P2P sin matar el proceso.
+Los mineros siguen operativos pero están en universos separados.
 
-### Paso 2 · Minado paralelo en ambos universos
+### Paso 2 · Transacciones distintas en cada minero
+
+Ahora que las mempools de `minero-azul` y `minero-rojo` están incomunicadas, lanzamos una transacción diferente en cada uno. Así cada bloque que mine a continuación incluirá una tx que **solo existe en su universo**.
+
+```bash
+# en minero-azul
+bitcoin-cli sendtoaddress <addr_alumno_A> 0.1
+
+# en minero-rojo
+bitcoin-cli sendtoaddress <addr_alumno_B> 0.2
+```
+
+Comprobamos que cada minero ve en su mempool únicamente su propia tx:
+
+```bash
+bitcoin-cli getrawmempool
+```
+
+> Pregunta: Si ahora mismo le preguntamos a un alumno, ¿verá estas transacciones en su mempool? ¿Por qué?
+
+### Paso 3 · Minado paralelo en ambos universos
 
 ```bash
 # en minero-azul
@@ -137,11 +248,16 @@ bitcoin-cli generatetoaddress 5 $(bitcoin-cli getnewaddress)
 bitcoin-cli generatetoaddress 3 $(bitcoin-cli getnewaddress)
 ```
 
-Crucial: asegurarse de que `minero-rojo` incluye en sus bloques alguna de las transacciones que están en la mempool, para que luego se vean "resucitar". Esto se consigue minando desde un nodo que tenga esas tx en su mempool (los alumnos propagaron las tx a la red antes del aislamiento, así que ambos mineros las tienen).
+> Pregunta *"Ambos mineros creen que su cadena es la buena. Ninguno sabe que el otro existe. ¿Cuál es la cadena 'correcta' ahora mismo?"*
+> Hay dos chains ahora mismo, o lo que es lo mismo, un fork.
 
-Pregunta abierta al aula: *"Ambos mineros creen que su cadena es la buena. Ninguno sabe que el otro existe. ¿Cuál es la cadena 'correcta' ahora mismo?"* Aquí se introduce la regla de "heaviest chain" y por qué la verdad en Bitcoin es siempre provisional.
+Se puede ver que el número de bloques no es el mismo:
 
-### Paso 3 · Reconexión
+```bash
+bitcoin-cli getchaintips
+```
+
+### Paso 4 · Reconexión
 
 ```bash
 # en ambos mineros
@@ -150,7 +266,7 @@ bitcoin-cli setnetworkactive true
 
 En cuestión de segundos ambos nodos intercambian headers con la red, descubren que hay dos cadenas candidatas partiendo del mismo ancestro común, y aplican la regla de mayor trabajo acumulado. Como azul tiene 5 bloques y rojo solo 3, gana azul.
 
-### Paso 4 · Observación de la reorg
+### Paso 5 · Observación de la reorg
 
 Los alumnos lanzan en sus contenedores:
 
@@ -170,9 +286,11 @@ La salida de `getchaintips` es la vista estrella:
 
 La rama perdedora no desaparece del nodo: queda marcada como `valid-fork`. Son bloques perfectamente válidos que simplemente no forman parte de la cadena principal.
 
-### Paso 5 · Las transacciones resucitadas
+> Pregunta: ¿qué pasa con las transacciones de la rama que ha perdido?
 
-El remate. Las tx que estaban confirmadas en los bloques del bando rojo **vuelven a la mempool** de todos los nodos, porque han dejado de estar incluidas en la cadena principal:
+### Paso 6 · Las transacciones resucitadas
+
+Las tx que estaban confirmadas en los bloques del bando rojo **vuelven a la mempool** del nodo rojo.
 
 ```bash
 bitcoin-cli getmempoolinfo
@@ -181,24 +299,12 @@ bitcoin-cli getrawmempool
 
 Momento para el aprendizaje clave: "confirmación" significa "incluida en un bloque de la cadena principal **ahora mismo**". Ese estado puede cambiar. Por eso los intercambios y los comercios de alto valor esperan **6 confirmaciones o más** — no porque una reorg sea imposible, sino porque una reorg de 6 bloques es estadísticamente improbable en una red con hash rate global.
 
-Conexión directa con la slide *Confirmaciones y doble gasto* del Módulo 1 y con el concepto de ataque del 51%: lo que acaban de ver es exactamente la mecánica de ese ataque, solo que a mansalva y con intención.
+## Sección 6 - Mempool como mercado
 
-### Detalles de operativa
-
-Para que la demo salga limpia:
-
-- Un par de alumnos voluntarios pueden "ser" azul y rojo, ejecutando ellos los `generatetoaddress` y `setnetworkactive` bajo la dirección del instructor. Hace la narrativa más teatral ("equipo azul vs equipo rojo") sin complicar el setup.
-- Los alumnos mantienen una **segunda sesión SSH** abierta al mismo contenedor con un `watch -n 1 'bitcoin-cli getblockcount && bitcoin-cli getbestblockhash | head -c 16'` para ver la altura actualizándose, incluido el salto hacia atrás en los nodos que reorganizan.
-- Si el instructor quiere un efecto aún más dramático, puede mantener la partición más tiempo y minar más bloques para generar una reorg profunda (p. ej. 10 vs 6). En producción eso sería catastrófico; en regtest es didáctico.
-
-
-## Bloque 4 · Mempool como mercado
-
-Todos los alumnos disparan transacciones simultáneamente entre ellos con distintos fee rates usando un helper `send_with_fee.sh`:
+Todos los alumnos disparan transacciones simultáneamente entre ellos con distintos fee rates:
 
 ```bash
-bitcoin-cli settxfee 0.00005         # o
-bitcoin-cli -named sendtoaddress address=$DEST amount=0.1 fee_rate=25
+bitcoin-cli -named sendtoaddress address=<addr> amount=0.1 fee_rate=25
 ```
 
 Observan la mempool llenándose:
@@ -206,7 +312,6 @@ Observan la mempool llenándose:
 ```bash
 bitcoin-cli getmempoolinfo
 bitcoin-cli getrawmempool true       # orden por fee rate
-bitcoin-cli getmempoolentry <txid>   # ancestros, descendientes, fees agregados
 ```
 
 Después, un alumno mina un bloque seleccionando a mano qué transacciones entran, usando `generateblock`:
@@ -217,12 +322,19 @@ bitcoin-cli generateblock <addr> '["<txid1>","<txid2>"]'
 
 Los demás ven cómo esas transacciones desaparecen de sus mempools mientras las no seleccionadas quedan esperando. Esto materializa la idea de que un minero es un *seleccionador de transacciones*, no solo un buscador de nonces.
 
+## Sección 7 · Salto a signet
 
-## Bloque 5 · Salto a signet
+Paramos el bitcoind:
+
+```bash
+bitcoin-cli stop
+```
 
 Cambio de `bitcoin.conf`: reemplazar `regtest=1` por `signet=1`. Reiniciar `bitcoind` y observar cómo se sincroniza una cadena *real* — signet pesa poco y tarda pocos minutos.
 
-**Nota sobre los `addnode` del aula**: las líneas `addnode=alumno-XX:18444` que generó el entrypoint apuntan al puerto P2P de **regtest** (18444). En signet el puerto P2P es **38333**, así que esas directivas quedan inertes al cambiar de red — no molestan, pero tampoco conectan. `bitcoind` descubre por sí mismo peers públicos de signet vía DNS seeds, que es justo lo que queremos para ver una red *real*. Si se quisiera también que los contenedores del aula se vieran entre sí en signet, habría que añadir a mano `addnode=alumno-XX:38333` o regenerar la plantilla con ese puerto.
+```bash
+bitcoind -daemon
+```
 
 ```bash
 bitcoin-cli getblockchaininfo
@@ -230,31 +342,9 @@ bitcoin-cli getpeerinfo   # ahora aparecen IPs reales de internet
 bitcoin-cli getchaintips
 ```
 
-Los alumnos reciben sats desde el [signet faucet](https://signetfaucet.com/) y se los envían entre ellos. Es la misma `bitcoin-cli`, la misma `bitcoin.conf`, el mismo flujo — pero la red es pública.
+Se puede crear una nueva wallet y address y pedir sats desde el [signet faucet](https://signetfaucet.com/).
 
-Cierre conceptual: el software es el mismo, el protocolo es el mismo, solo cambia el conjunto de nodos y las reglas del consenso.
-
-
-## Bloque 6 · Cierre
-
-Recapitulación rápida: qué montaron, qué ficheros tocaron, qué comandos aprendieron.
-
-
-## Artefactos de la práctica
-
-### Ya construidos (raíz del repo)
-
-- **`Dockerfile`** — imagen Ubuntu 24.04 + Bitcoin Core 28.1 + `bitcoin-cli`, `jq`, `sshd` y los helpers del alumno (`send_with_fee.sh`, `reset-chain.sh`) en el `PATH`.
-- **`bitcoin.conf.template`** — plantilla con variables (`BITCOIN_RPCUSER`, `BITCOIN_RPCPASSWORD`, `BITCOIN_RPCALLOW`, `BITCOIN_ADDNODES`) y `fallbackfee=0.0002` para que `sendtoaddress` funcione en regtest.
-- **`entrypoint.sh`** — renderiza el `bitcoin.conf` al arrancar el contenedor y lanza `sshd`.
-- **`docker-compose.yml`** — 4 alumnos + 2 mineros en la red `blocknet` (subred `172.20.0.0/16`), con puertos SSH 61151-61154, 61170 (azul) y 61171 (rojo).
-- **`blocknet.env`** — variables compartidas (peers, RPC, subred) inyectadas vía `env_file`.
-- **`scripts/fork-demo.sh`** — orquesta la demo del Bloque 3 desde el host.
-- **`scripts/send_with_fee.sh`** — envío de BTC con fee rate explícito (Bloque 4).
-- **`scripts/reset-chain.sh`** — borra el regtest local y rearranca `bitcoind` (plan B).
-- **`README.md`** con instrucciones de puesta en marcha, acceso SSH, logs y cómo escalar a 15 alumnos.
-
-### Pendientes
-
-- Guion paso a paso para los alumnos en PDF o web (un handout de 4-6 páginas).
-- Ampliar el `docker-compose.yml` de 4 a 15 alumnos (o añadir un generador `gen-compose.sh`).
+```bash
+bitcoin-cli createwallet "wallet"
+bitcoin-cli getnewaddress "alumnoaddr"
+```

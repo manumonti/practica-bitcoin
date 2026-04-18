@@ -8,7 +8,7 @@ Infraestructura Docker para la práctica de laboratorio del Módulo 5
 - **`Dockerfile`** — imagen base Ubuntu 24.04 con Bitcoin Core 28.1, `bitcoin-cli`, `jq`, `sshd` y los helpers del alumno.
 - **`bitcoin.conf.template`** — plantilla con variables que el entrypoint sustituye al arrancar.
 - **`entrypoint.sh`** — genera el `bitcoin.conf` final y lanza sshd.
-- **`docker-compose.yml`** — 4 alumnos (`alumno-01`..`alumno-04`) + 2 mineros (`minero-azul`, `minero-rojo`) en la red `blocknet` (`172.20.0.0/16`).
+- **`docker-compose.yml`** — 16 alumnos (`alumno-01`..`alumno-16`) + 2 mineros (`minero-azul`, `minero-rojo`) en la red `blocknet` (`172.20.0.0/16`).
 - **`blocknet.env`** — variables compartidas (peers, RPC user/password, subred) que Compose inyecta en cada servicio vía `env_file`.
 - **`scripts/`** — helpers de la práctica:
   - `fork-demo.sh` (host): orquesta la demo de fork/reorg del Bloque 3 con `docker compose exec`.
@@ -26,11 +26,11 @@ docker compose ps
 ## Acceso
 
 ```bash
-# Desde la VM
+# Desde la VM — regla general: alumno-k → puerto 61150+k
 ssh alumno@localhost -p 61151     # alumno-01
 ssh alumno@localhost -p 61152     # alumno-02
-ssh alumno@localhost -p 61153     # alumno-03
-ssh alumno@localhost -p 61154     # alumno-04
+# ...
+ssh alumno@localhost -p 61166     # alumno-16
 ssh alumno@localhost -p 61170     # minero-azul
 ssh alumno@localhost -p 61171     # minero-rojo
 # contraseña: bitcoin
@@ -74,26 +74,3 @@ adicional es simplemente otra sesión SSH al mismo puerto.
 docker compose down          # para los contenedores (datos persisten)
 docker compose down -v       # también borra los volúmenes (reset completo)
 ```
-
-## Escalar a más alumnos
-
-Para pasar de 4 → 15 alumnos basta con replicar el bloque `alumno-0X`
-en el compose, actualizando tres cosas:
-
-1. `container_name`, `hostname` y la clave del servicio → `alumno-05`, `alumno-06`…
-2. El puerto SSH → `6115N:22` (alumno-k → 61150+k).
-3. Añadir el nuevo hostname a `BITCOIN_PEERS` en el bloque `x-common-peers`.
-
-El mismo volumen nombrado (`alumno-0N-data`) debe añadirse a la sección
-`volumes:`.
-
-## Notas
-
-- La imagen no arranca `bitcoind` al iniciar; son los alumnos quienes
-  lo lanzan durante el Bloque 1 de la práctica. El entrypoint solo
-  genera el `bitcoin.conf` y pone en marcha `sshd`.
-- Todos los contenedores comparten la misma imagen y la misma lista de
-  peers; bitcoind descarta automáticamente los self-peers, así que no
-  hay que personalizar la lista por nodo.
-- En la red `blocknet`, cada contenedor es resoluble por su nombre
-  (`alumno-02`, `minero-rojo`, etc.) gracias al DNS embebido de Docker.

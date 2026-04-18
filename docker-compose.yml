@@ -2,7 +2,7 @@
 #  Lab Bitcoin · Sesión 2 · Módulo 5 · UMA · 2026
 # -----------------------------------------------------------------------------
 #  Arranca:
-#    · 4 contenedores de alumno   (alumno-01 ... alumno-04)
+#    · 16 contenedores de alumno  (alumno-01 ... alumno-16)
 #    · 2 contenedores de instructor (minero-azul, minero-rojo)
 #
 #  Conectados a la red bridge "blocknet" (172.20.0.0/16).
@@ -38,6 +38,18 @@ volumes:
   alumno-02-data:
   alumno-03-data:
   alumno-04-data:
+  alumno-05-data:
+  alumno-06-data:
+  alumno-07-data:
+  alumno-08-data:
+  alumno-09-data:
+  alumno-10-data:
+  alumno-11-data:
+  alumno-12-data:
+  alumno-13-data:
+  alumno-14-data:
+  alumno-15-data:
+  alumno-16-data:
   minero-azul-data:
   minero-rojo-data:
 
@@ -98,6 +110,114 @@ services:
       - "61154:22"
     volumes:
       - alumno-04-data:/home/alumno/.bitcoin
+
+  alumno-05:
+    <<: *common
+    container_name: alumno-05
+    hostname: alumno-05
+    ports:
+      - "61155:22"
+    volumes:
+      - alumno-05-data:/home/alumno/.bitcoin
+
+  alumno-06:
+    <<: *common
+    container_name: alumno-06
+    hostname: alumno-06
+    ports:
+      - "61156:22"
+    volumes:
+      - alumno-06-data:/home/alumno/.bitcoin
+
+  alumno-07:
+    <<: *common
+    container_name: alumno-07
+    hostname: alumno-07
+    ports:
+      - "61157:22"
+    volumes:
+      - alumno-07-data:/home/alumno/.bitcoin
+
+  alumno-08:
+    <<: *common
+    container_name: alumno-08
+    hostname: alumno-08
+    ports:
+      - "61158:22"
+    volumes:
+      - alumno-08-data:/home/alumno/.bitcoin
+
+  alumno-09:
+    <<: *common
+    container_name: alumno-09
+    hostname: alumno-09
+    ports:
+      - "61159:22"
+    volumes:
+      - alumno-09-data:/home/alumno/.bitcoin
+
+  alumno-10:
+    <<: *common
+    container_name: alumno-10
+    hostname: alumno-10
+    ports:
+      - "61160:22"
+    volumes:
+      - alumno-10-data:/home/alumno/.bitcoin
+
+  alumno-11:
+    <<: *common
+    container_name: alumno-11
+    hostname: alumno-11
+    ports:
+      - "61161:22"
+    volumes:
+      - alumno-11-data:/home/alumno/.bitcoin
+
+  alumno-12:
+    <<: *common
+    container_name: alumno-12
+    hostname: alumno-12
+    ports:
+      - "61162:22"
+    volumes:
+      - alumno-12-data:/home/alumno/.bitcoin
+
+  alumno-13:
+    <<: *common
+    container_name: alumno-13
+    hostname: alumno-13
+    ports:
+      - "61163:22"
+    volumes:
+      - alumno-13-data:/home/alumno/.bitcoin
+
+  alumno-14:
+    <<: *common
+    container_name: alumno-14
+    hostname: alumno-14
+    ports:
+      - "61164:22"
+    volumes:
+      - alumno-14-data:/home/alumno/.bitcoin
+
+  alumno-15:
+    <<: *common
+    container_name: alumno-15
+    hostname: alumno-15
+    ports:
+      - "61165:22"
+    volumes:
+      - alumno-15-data:/home/alumno/.bitcoin
+
+  alumno-16:
+    <<: *common
+    container_name: alumno-16
+    hostname: alumno-16
+    ports:
+      - "61166:22"
+    volumes:
+      - alumno-16-data:/home/alumno/.bitcoin
 
   # -------------------- MINEROS (controlados por el instructor) --------------
   minero-azul:
