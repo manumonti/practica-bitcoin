@@ -42,8 +42,8 @@ Desde fuera de la VM, sustituir `localhost` por la IP/hostname de la VM
 Atajo sin SSH, útil para el instructor:
 
 ```bash
-docker compose exec alumno-01 bash
-docker compose exec minero-azul bash
+docker compose exec -u alumno alumno-01 bash
+docker compose exec -u alumno minero-azul bash
 ```
 
 ## Comandos típicos
@@ -53,7 +53,7 @@ docker compose build
 docker compose up -d
 docker compose ps
 docker compose logs -f alumno-01
-docker compose exec alumno-01 bash     # entrar sin ssh
+docker compose exec -u alumno alumno-01 bash     # entrar sin ssh
 docker compose down -v                 # tirar todo, limpiar volúmenes
 ```
 

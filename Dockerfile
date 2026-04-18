@@ -15,7 +15,10 @@ FROM ubuntu:24.04
 
 # ---- Parámetros de build ----------------------------------------------------
 ARG BITCOIN_VERSION=28.1
-ARG TARGETARCH_BITCOIN=x86_64-linux-gnu
+# TARGETARCH lo inyecta Docker buildx automáticamente:
+#   · amd64  → equipos Windows/Linux del laboratorio
+#   · arm64  → Macs con Apple Silicon
+ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
@@ -34,9 +37,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ---- Instalación de Bitcoin Core -------------------------------------------
 RUN set -eux; \
+    case "${TARGETARCH}" in \
+        amd64) BITCOIN_ARCH="x86_64-linux-gnu" ;; \
+        arm64) BITCOIN_ARCH="aarch64-linux-gnu" ;; \
+        *) echo "Arquitectura no soportada: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
     cd /tmp; \
-    curl -fsSL -O "https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/bitcoin-${BITCOIN_VERSION}-${TARGETARCH_BITCOIN}.tar.gz"; \
-    tar -xzf "bitcoin-${BITCOIN_VERSION}-${TARGETARCH_BITCOIN}.tar.gz"; \
+    curl -fsSL -O "https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/bitcoin-${BITCOIN_VERSION}-${BITCOIN_ARCH}.tar.gz"; \
+    tar -xzf "bitcoin-${BITCOIN_VERSION}-${BITCOIN_ARCH}.tar.gz"; \
     install -m 0755 "bitcoin-${BITCOIN_VERSION}/bin/bitcoind"     /usr/local/bin/bitcoind; \
     install -m 0755 "bitcoin-${BITCOIN_VERSION}/bin/bitcoin-cli"  /usr/local/bin/bitcoin-cli; \
     install -m 0755 "bitcoin-${BITCOIN_VERSION}/bin/bitcoin-tx"   /usr/local/bin/bitcoin-tx; \
@@ -72,9 +80,7 @@ RUN chmod +x /usr/local/bin/send_with_fee.sh /usr/local/bin/reset-chain.sh
 #   22     → SSH (mapeado a 61150+k en el host)
 #   18443  → RPC regtest (solo accesible desde la red Docker)
 #   18444  → P2P regtest (solo accesible desde la red Docker)
-#   28332  → ZMQ rawblock (para sesión 4 · LND)
-#   28333  → ZMQ rawtx    (para sesión 4 · LND)
-EXPOSE 22 18443 18444 28332 28333
+EXPOSE 22 18443 18444
 
 # tini gestiona señales y zombis — importante al correr sshd como PID 1
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]

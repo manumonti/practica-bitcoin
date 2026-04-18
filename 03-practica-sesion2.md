@@ -1,74 +1,66 @@
 # Práctica de laboratorio · Sesión 2
 
-**Módulo 5 · Bitcoin — Curso de Extensión Universitaria en Tecnologías Blockchain · UMA · 2026**
-
-Duración: 2 horas guiadas paso a paso por el instructor.
-Título de trabajo: *"De cero a una red Bitcoin del aula"*.
-
-
 ## Arquitectura de la VM
 
-Una VM Ubuntu (32 vCPU, 64 GB RAM, SSD 300 GB) accesible por SSH con los puertos `61150-61200` expuestos al exterior.
+Se encuentra desplegada una VM Ubuntu accesible por SSH con los puertos `61150-61200` expuestos al exterior.
 
-Sobre esa VM el instructor levanta:
+Sobre esa VM, se encuentra levantado:
 
 - Una red Docker bridge llamada `blocknet` (subred `172.20.0.0/16`) que interconecta todos los contenedores.
-- Un contenedor por alumno (`alumno-01`, `alumno-02`, …) con `bitcoind`, `bitcoin-cli`, `jq` y `sshd` preinstalados. Cada contenedor expone su `sshd` en un puerto del rango asignado: alumno *k* → puerto `61150+k`.
-- Dos contenedores especiales controlados por el instructor: `minero-azul` y `minero-rojo`. Son idénticos a los de los alumnos pero tienen el rol pedagógico de representar mineros en el bloque de fork.
+- Un contenedor por alumno (`alumno-01`, `alumno-02`, …) con `bitcoind` y `bitcoin-cli` preinstalados. Cada contenedor expone su SSH en un puerto del rango asignado: alumno *k* → puerto `61150+k`.
+- Dos contenedores especiales: `minero-azul` y `minero-rojo`. Son idénticos a los de los alumnos pero tienen el rol pedagógico de representar mineros en el bloque de fork.
 
 El `bitcoin.conf` de cada contenedor se genera al arrancar a partir de una plantilla y de la variable de entorno `BITCOIN_PEERS`, que añade una línea `addnode=<peer>:18444` por cada compañero del aula. Así, al iniciar `bitcoind`, se forman conexiones P2P reales entre contenedores: cuando un nodo mina, los demás reciben el bloque por propagación estándar.
 
-Con 15 alumnos + 2 mineros y ~200 MB por contenedor se consumen apenas 4 GB de RAM; `bitcoind` en regtest casi no usa memoria. Para las pruebas iniciales montaremos **4 alumnos + 2 mineros** (6 contenedores); escalar a 15 alumnos es replicar el bloque `alumno-0X` del `docker-compose.yml`.
+## Bloque 0 · Arranque
 
-
-## Visión general
-
-| Bloque | Minutos | Tema |
-|---|---|---|
-| 0 | 10 | Arranque y tour del contenedor |
-| 1 | 25 | Configuración de `bitcoin.conf` y primer arranque |
-| 2 | 30 | La red del aula: propagación P2P en vivo |
-| **3** | **20-25** | **Fork y reorganización (opcional si sobra tiempo)** |
-| 4 | 30 | La mempool como mercado |
-| 5 | 20 | Salto a signet |
-| 6 | 5 | Cierre y puente a sesión 4 |
-
-
-## Bloque 0 · Arranque (10 min)
-
-Los alumnos se conectan por SSH a su contenedor:
+Conectar por SSH al contenedor asignado a cada alumno.
 
 ```bash
 ssh alumno@<vm> -p 6115X
 ```
 
-Una vez dentro, tour rápido por el sistema de ficheros: dónde está el binario de `bitcoind`, dónde el datadir (`~/.bitcoin/`), dónde los logs (`~/.bitcoin/regtest/debug.log`). Se remarca que `bitcoind` **no está corriendo todavía** — lo arrancarán ellos mismos, a diferencia de la práctica de Nigiri donde el nodo venía arrancado.
+Comprueba que bitcoind está instalado:
 
+```bash
+bitcoind --version
+bitcoin-cli --version
+```
 
-## Bloque 1 · Configuración y primer arranque (25 min)
+Observa que hay una carpeta llamada bitcoin en home. Mira su contenido:
 
-Abrir `~/.bitcoin/bitcoin.conf` con `cat` o `vim`. Lectura guiada línea a línea explicando cada directiva: `regtest=1`, `server=1`, `rpcuser` / `rpcpassword`, `rpcbind=0.0.0.0`, `rpcallowip=172.20.0.0/16`, `txindex=1`, `debug=mempool`, `addnode=alumno-XX:18444`.
+```bash
+cd /home/alumno
+ls -la
+```
+
+## Bloque 1 · Configuración y primer arranque
+
+Abrir `/home/alumno/.bitcoin/bitcoin.conf` con `cat` o `nano`, o `vim`. Observa las opciones de configuración.
 
 Arranque del nodo:
 
 ```bash
 bitcoind -daemon
 bitcoin-cli getblockchaininfo
+```
+
+Esperamos a que nuestros compañeros inicien sus nodos.
+
+```bash
+# Observa cuantas conexiones activas hay
 bitcoin-cli getnetworkinfo
 ```
 
-Para ver los logs en directo, se explica a los alumnos que pueden **abrir otra terminal y conectarse por SSH al mismo contenedor** (mismo `ssh alumno@<vm> -p 6115X`) y allí ejecutar:
+Abre otra sesión SSH en una terminal diferente, y deja abierto los logs:
 
 ```bash
 tail -f ~/.bitcoin/regtest/debug.log
 ```
 
-Así trabajan con dos ventanas: una para comandos, otra observando los logs. Cada ventana adicional es simplemente otra sesión SSH al mismo contenedor — no usamos multiplexores (`screen`, `tmux`) para mantener el flujo lo más simple posible.
-
-Micro-ejercicio de diagnóstico: pedir que cambien `rpcpassword` en el fichero y reinicien `bitcoind`. La `bitcoin-cli` dejará de funcionar con un `401 Unauthorized`. Aprenden a leer el error, restauran la contraseña original, reinician y vuelven al verde.
+## Bloque 2 · La red del aula
 
 
-## Bloque 2 · La red del aula (30 min)
 
 Cada alumno ejecuta `bitcoin-cli getpeerinfo` y descubre que ya está conectado con varios compañeros. Se explora qué información expone un peer: versión, IP, bloques en común, latencia, dirección de conexión, si es inbound u outbound.
 
@@ -93,7 +85,7 @@ Los demás lanzan `bitcoin-cli getblockcount` y ven subir el contador en tiempo 
 Después, cada alumno mina 101 bloques a una dirección propia para activar la maduración de coinbase y tener saldo gastable. Comprueban con `getbalance` y observan que los 50 BTC del primer bloque siguen sin ser gastables hasta pasar los 100 bloques de maduración.
 
 
-## Bloque 3 · Fork y reorganización (20-25 min · opcional)
+## Bloque 3 · Fork y reorganización (opcional)
 
 **Objetivo**: que los alumnos vean en directo qué significa "la cadena con más trabajo gana", cómo se produce una reorg, y por qué las confirmaciones son probabilísticas.
 
@@ -105,7 +97,7 @@ Los contenedores `minero-azul` y `minero-rojo` están conectados a la red del au
 
 Conviene llevar preparado un script `fork-demo.sh` con las llamadas encadenadas — ejecutarlas a mano en vivo es frágil.
 
-### Estado inicial (2 min)
+### Estado inicial
 
 Todos los contenedores tienen el mismo tip. Se comprueba proyectando el resultado en pantalla:
 
@@ -121,7 +113,7 @@ bitcoin-cli sendtoaddress <alguna_dir> 0.5
 bitcoin-cli sendtoaddress <otra_dir> 0.25
 ```
 
-### Paso 1 · Partición (2 min)
+### Paso 1 · Partición
 
 El instructor aísla los dos mineros de la red del aula y entre sí:
 
@@ -135,7 +127,7 @@ bitcoin-cli setnetworkactive false
 
 `setnetworkactive false` desactiva completamente el networking P2P sin matar el proceso. Los mineros siguen operativos pero están en universos separados. Los alumnos no perciben nada distinto.
 
-### Paso 2 · Minado paralelo en ambos universos (5 min)
+### Paso 2 · Minado paralelo en ambos universos
 
 ```bash
 # en minero-azul
@@ -149,7 +141,7 @@ Crucial: asegurarse de que `minero-rojo` incluye en sus bloques alguna de las tr
 
 Pregunta abierta al aula: *"Ambos mineros creen que su cadena es la buena. Ninguno sabe que el otro existe. ¿Cuál es la cadena 'correcta' ahora mismo?"* Aquí se introduce la regla de "heaviest chain" y por qué la verdad en Bitcoin es siempre provisional.
 
-### Paso 3 · Reconexión (2 min)
+### Paso 3 · Reconexión
 
 ```bash
 # en ambos mineros
@@ -158,7 +150,7 @@ bitcoin-cli setnetworkactive true
 
 En cuestión de segundos ambos nodos intercambian headers con la red, descubren que hay dos cadenas candidatas partiendo del mismo ancestro común, y aplican la regla de mayor trabajo acumulado. Como azul tiene 5 bloques y rojo solo 3, gana azul.
 
-### Paso 4 · Observación de la reorg (5 min)
+### Paso 4 · Observación de la reorg
 
 Los alumnos lanzan en sus contenedores:
 
@@ -178,7 +170,7 @@ La salida de `getchaintips` es la vista estrella:
 
 La rama perdedora no desaparece del nodo: queda marcada como `valid-fork`. Son bloques perfectamente válidos que simplemente no forman parte de la cadena principal.
 
-### Paso 5 · Las transacciones resucitadas (3-5 min)
+### Paso 5 · Las transacciones resucitadas
 
 El remate. Las tx que estaban confirmadas en los bloques del bando rojo **vuelven a la mempool** de todos los nodos, porque han dejado de estar incluidas en la cadena principal:
 
@@ -200,7 +192,7 @@ Para que la demo salga limpia:
 - Si el instructor quiere un efecto aún más dramático, puede mantener la partición más tiempo y minar más bloques para generar una reorg profunda (p. ej. 10 vs 6). En producción eso sería catastrófico; en regtest es didáctico.
 
 
-## Bloque 4 · Mempool como mercado (30 min)
+## Bloque 4 · Mempool como mercado
 
 Todos los alumnos disparan transacciones simultáneamente entre ellos con distintos fee rates usando un helper `send_with_fee.sh`:
 
@@ -226,7 +218,7 @@ bitcoin-cli generateblock <addr> '["<txid1>","<txid2>"]'
 Los demás ven cómo esas transacciones desaparecen de sus mempools mientras las no seleccionadas quedan esperando. Esto materializa la idea de que un minero es un *seleccionador de transacciones*, no solo un buscador de nonces.
 
 
-## Bloque 5 · Salto a signet (20 min)
+## Bloque 5 · Salto a signet
 
 Cambio de `bitcoin.conf`: reemplazar `regtest=1` por `signet=1`. Reiniciar `bitcoind` y observar cómo se sincroniza una cadena *real* — signet pesa poco y tarda pocos minutos.
 
@@ -243,14 +235,9 @@ Los alumnos reciben sats desde el [signet faucet](https://signetfaucet.com/) y s
 Cierre conceptual: el software es el mismo, el protocolo es el mismo, solo cambia el conjunto de nodos y las reglas del consenso.
 
 
-## Bloque 6 · Cierre (5 min)
+## Bloque 6 · Cierre
 
-Recapitulación rápida: qué montaron, qué ficheros tocaron, qué comandos aprendieron. Anuncio de que en **sesión 4** la misma infraestructura servirá para añadir un nodo Lightning encima: el `bitcoind` regtest que acaban de configurar es exactamente el backend que usará LND.
-
-
-## Continuidad con sesión 4
-
-La imagen Docker de la sesión 2 se ampliará en sesión 4 con `lnd` y algún helper. El `bitcoin.conf` ya queda preparado con los campos que LND necesita: `server=1`, `zmqpubrawblock`, `zmqpubrawtx`, credenciales RPC. Los alumnos arrancarán `lnd` apuntando a su `bitcoind` local, abrirán canales entre ellos aprovechando que todos los nodos ya están conectados en la misma red Docker, y la práctica fluye sin tener que reinstalar nada.
+Recapitulación rápida: qué montaron, qué ficheros tocaron, qué comandos aprendieron.
 
 
 ## Artefactos de la práctica
