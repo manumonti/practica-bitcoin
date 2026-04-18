@@ -1,0 +1,47 @@
+# =============================================================================
+#  bitcoin.conf — plantilla para la práctica (sesión 2 · Módulo 5 · UMA 2026)
+# -----------------------------------------------------------------------------
+#  Las variables ${VAR} las sustituye el entrypoint del contenedor al arrancar.
+#  El fichero final queda en ~/.bitcoin/bitcoin.conf y es el que verán los
+#  alumnos cuando hagan "cat" o "vim" sobre él.
+# =============================================================================
+
+# ---- Red regtest y servicio RPC --------------------------------------------
+regtest=1
+server=1
+
+# Credenciales RPC. Las usa bitcoin-cli (archivo .cookie si no se definen).
+# En un entorno real usaríamos 'rpcauth='; aquí, por pedagogía, dejamos
+# rpcuser/rpcpassword en claro.
+rpcuser=${BITCOIN_RPCUSER}
+rpcpassword=${BITCOIN_RPCPASSWORD}
+
+# El RPC escucha en 0.0.0.0 pero solo aceptamos peticiones desde la
+# subred Docker del aula (blocknet).
+rpcbind=0.0.0.0
+rpcallowip=${BITCOIN_RPCALLOW}
+
+# ---- Índices útiles para la práctica ---------------------------------------
+# txindex=1 nos permite consultar cualquier tx por txid (getrawtransaction).
+txindex=1
+
+# ---- Fees en regtest -------------------------------------------------------
+# En regtest no hay histórico de fees para estimar, así que sendtoaddress
+# fallaría con "Fee estimation failed. Fallbackfee is disabled". Fijamos un
+# valor sensato (0.0002 BTC/kvB ≈ 20 sat/vB) para que los envíos de la
+# práctica funcionen sin pasar -fee_rate cada vez.
+fallbackfee=0.0002
+
+# ---- Logging ---------------------------------------------------------------
+# Activa log detallado del mercado de mempool; muy útil para el Bloque 4.
+debug=mempool
+
+# ---- ZMQ (se utilizará en la sesión 4 con LND) -----------------------------
+zmqpubrawblock=tcp://0.0.0.0:28332
+zmqpubrawtx=tcp://0.0.0.0:28333
+
+# ---- Peers del aula · blocknet ---------------------------------------------
+# El entrypoint añade una línea "addnode=<peer>:18444" por cada contenedor
+# listado en la variable BITCOIN_PEERS (separada por comas). Así cada nodo
+# arranca con conexiones P2P ya establecidas al resto del aula.
+${BITCOIN_ADDNODES}

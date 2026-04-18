@@ -1,0 +1,119 @@
+# =============================================================================
+#  Lab Bitcoin · Sesión 2 · Módulo 5 · UMA · 2026
+# -----------------------------------------------------------------------------
+#  Arranca:
+#    · 4 contenedores de alumno   (alumno-01 ... alumno-04)
+#    · 2 contenedores de instructor (minero-azul, minero-rojo)
+#
+#  Conectados a la red bridge "blocknet" (172.20.0.0/16).
+#
+#  Acceso SSH desde el host (o desde fuera de la VM si el firewall lo permite):
+#      ssh alumno@<vm> -p 6115X        # alumno-0X  → 61150+X
+#      ssh alumno@<vm> -p 61170        # minero-azul
+#      ssh alumno@<vm> -p 61171        # minero-rojo
+#      contraseña: bitcoin
+# =============================================================================
+
+name: bitcoin-lab
+
+# -----------------------------------------------------------------------------
+# Red compartida del aula
+# -----------------------------------------------------------------------------
+networks:
+  blocknet:
+    name: blocknet
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+# -----------------------------------------------------------------------------
+# Volúmenes nombrados — uno por contenedor, para que el regtest de cada
+# alumno persista entre restarts (`docker compose restart alumno-02` no les
+# tira su trabajo).  `docker compose down -v` los elimina.
+# -----------------------------------------------------------------------------
+volumes:
+  alumno-01-data:
+  alumno-02-data:
+  alumno-03-data:
+  alumno-04-data:
+  minero-azul-data:
+  minero-rojo-data:
+
+# -----------------------------------------------------------------------------
+# Anchor YAML para no repetir los campos de build / defaults en cada servicio.
+# Las variables de entorno compartidas viven en `blocknet.env` y se inyectan
+# con `env_file:`
+# -----------------------------------------------------------------------------
+x-common: &common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: bitcoin-lab:latest
+  restart: unless-stopped
+  networks:
+    - blocknet
+  env_file:
+    - blocknet.env
+
+# -----------------------------------------------------------------------------
+# Servicios
+# -----------------------------------------------------------------------------
+services:
+
+  # ------------------------------- ALUMNOS -----------------------------------
+  alumno-01:
+    <<: *common
+    container_name: alumno-01
+    hostname: alumno-01
+    ports:
+      - "61151:22"
+    volumes:
+      - alumno-01-data:/home/alumno/.bitcoin
+
+  alumno-02:
+    <<: *common
+    container_name: alumno-02
+    hostname: alumno-02
+    ports:
+      - "61152:22"
+    volumes:
+      - alumno-02-data:/home/alumno/.bitcoin
+
+  alumno-03:
+    <<: *common
+    container_name: alumno-03
+    hostname: alumno-03
+    ports:
+      - "61153:22"
+    volumes:
+      - alumno-03-data:/home/alumno/.bitcoin
+
+  alumno-04:
+    <<: *common
+    container_name: alumno-04
+    hostname: alumno-04
+    ports:
+      - "61154:22"
+    volumes:
+      - alumno-04-data:/home/alumno/.bitcoin
+
+  # -------------------- MINEROS (controlados por el instructor) --------------
+  minero-azul:
+    <<: *common
+    container_name: minero-azul
+    hostname: minero-azul
+    ports:
+      - "61170:22"
+    volumes:
+      - minero-azul-data:/home/alumno/.bitcoin
+
+  minero-rojo:
+    <<: *common
+    container_name: minero-rojo
+    hostname: minero-rojo
+    ports:
+      - "61171:22"
+    volumes:
+      - minero-rojo-data:/home/alumno/.bitcoin
