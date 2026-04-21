@@ -11,6 +11,8 @@ q: SegWit v0, formato Bech32
 
 Otra address generada con bech32m
 
+bitcoin-cli getnewaddress "alumnoaddr2" bech32m
+
 bcrt1p2jtns657jldmy52qx4alnq3d3gcgftn6v28t0j3n74sktvr6eqsq34cqef
 
 p: SegWit v1, Taproot.

@@ -129,7 +129,7 @@ bitcoin-cli generatetoaddress 10 <addr>
 Finalmente, para que todo el mundo tenga balance, minamos 1000 bloques.
 
 ```bash
-bitcoin-cli generatetoaddress 1 <addr>
+bitcoin-cli generatetoaddress 1000 <addr>
 ```
 
 ## Sección 4. Transacciones
@@ -329,6 +329,7 @@ Paramos el bitcoind:
 ```bash
 bitcoin-cli stop
 ```
+
 
 Cambio de `bitcoin.conf`: reemplazar `regtest=1` por `signet=1`. Reiniciar `bitcoind` y observar cómo se sincroniza una cadena *real* — signet pesa poco y tarda pocos minutos.
 
